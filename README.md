@@ -7,7 +7,6 @@ Aplicativo desktop que transforma planilhas Excel/CSV em scripts SQL prontos par
 ## ✨ Funcionalidades
 - 🎨 **Interface Vintage / Retrô (Windows 98)** — design icônico com estilo clássico dos sistemas operacionais dos anos 90 para uma experiência nostálgica e diferenciada
 - 📤 **Upload de planilha** (`.xlsx`, `.xls`, `.csv`) com detecção automática das colunas
-- 📤 **Upload de planilha** (`.xlsx`, `.xls`, `.csv`) com detecção automática das colunas
 - 🎯 **Seleção de colunas** — escolha exatamente o que entra na migração
 - 🔑 **Coluna chave configurável** — define qual coluna identifica um registro único
 - 🗄️ **3 bancos suportados** — SQL Server, MySQL/MariaDB e PostgreSQL
