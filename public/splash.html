@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Carregando...</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #008080;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Tahoma, 'MS Sans Serif', Geneva, sans-serif;
+    -webkit-app-region: drag; /* deixa arrastar a telinha de splash também */
+    overflow: hidden;
+  }
+
+  .splash-box {
+    text-align: center;
+    color: #fff;
+  }
+
+  .splash-box img {
+    width: 96px;
+    height: 96px;
+    image-rendering: pixelated;
+    margin-bottom: 14px;
+  }
+
+  .splash-titulo {
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  .splash-autor {
+    font-size: 12px;
+    margin-top: 6px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  .splash-loading {
+    margin: 18px auto 0;
+    width: 200px;
+    height: 16px;
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    background: #fff;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .splash-loading-bar {
+    height: 100%;
+    width: 50%;
+    background: #000080;
+    animation: mover 10.0s infinite ease-in-out;
+  }
+
+  @keyframes mover {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+</style>
+</head>
+<body>
+  <div class="splash-box">
+    <img src="icon.png" alt="ícone do app">
+    <div class="splash-titulo">Migrador de Planilhas para SQL</div>
+    <div class="splash-autor">Desenvolvido por Marcos Dutra</div>
+    <div class="splash-loading"><div class="splash-loading-bar"></div></div>
+  </div>
+</body>
+</html>

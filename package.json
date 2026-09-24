@@ -1,0 +1,40 @@
+{
+  "name": "migrador-planilhas-sql",
+  "version": "1.0.0",
+  "description": "Migrador de planilhas Excel/CSV para scripts SQL (SQL Server, MySQL e PostgreSQL)",
+  "main": "main.js",
+  "author": "Marcos Dutra",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "electron .",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.maxdata.migradorsql",
+    "productName": "Migrador de Planilhas SQL",
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

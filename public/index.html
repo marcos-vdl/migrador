@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Migrador de Planilhas para SQL</title>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      font-family: 'Tahoma', 'MS Sans Serif', Geneva, sans-serif; 
+    }
+    
+    html, body {
+      height: 100%;
+    }
+
+    body { 
+      background-color: #c0c0c0; /* mesma cor do container — evita qualquer sliver visível nas bordas */
+      margin: 0; 
+      padding: 0; 
+      color: #000; 
+      overflow: hidden; /* a página em si não rola — só o conteúdo dentro da janela */
+    }
+
+    /* Janela Principal Win98 */
+    .container { 
+      width: 100%;
+      height: 100%;
+      margin: 0; 
+      background: #c0c0c0; 
+      padding: 3px; 
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      box-shadow: 2px 2px 0px #000;
+      position: relative; 
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Barra de Título da Janela */
+    .win98-title-bar {
+      background: linear-gradient(90deg, #000080, #1084d0);
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 15px;
+      -webkit-app-region: drag; /* permite arrastar a janela clicando/segurando aqui */
+      flex-shrink: 0; /* fica sempre visível no topo, nunca rola junto com o conteúdo */
+    }
+
+    .win98-title-bar-buttons {
+      display: flex;
+      gap: 2px;
+      -webkit-app-region: no-drag; /* os botões precisam continuar clicáveis, não arrastáveis */
+    }
+
+    .win98-btn-title {
+      width: 16px;
+      height: 14px;
+      background: #c0c0c0;
+      border-top: 1px solid #fff;
+      border-left: 1px solid #fff;
+      border-right: 1px solid #000;
+      border-bottom: 1px solid #000;
+      font-size: 9px;
+      line-height: 12px;
+      text-align: center;
+      color: #000;
+      font-weight: bold;
+      cursor: default;
+    }
+
+    .win98-body {
+      padding: 15px 20px 20px 20px;
+      flex: 1; /* ocupa o espaço restante da janela, abaixo da barra de título */
+      overflow-y: auto; /* só esta área rola quando o conteúdo é maior que a janela */
+    }
+
+    h1 { 
+      margin: 0 0 6px 0; 
+      color: #000; 
+      font-size: 18px; 
+      font-weight: bold;
+    }
+
+    p.subtitulo {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    /* Groupbox e Forms estilo Win98 */
+    .fieldset-win98 {
+      border: 2px solid;
+      border-color: #808080 #ffffff #ffffff #808080;
+      padding: 12px;
+      margin-bottom: 16px;
+      background: #c0c0c0;
+    }
+
+    .fieldset-title {
+      font-weight: bold;
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    
+    label { 
+      display: block; 
+      font-weight: bold; 
+      margin-bottom: 6px; 
+      font-size: 12px; 
+      color: #000; 
+    }
+
+    /* Inputs afundados (Sunken / Inset) */
+    input[type="text"], select, input[type="file"] { 
+      width: 100%; 
+      padding: 5px 7px; 
+      border: 2px solid;
+      border-color: #808080 #ffffff #ffffff #808080;
+      box-shadow: inset 1px 1px 0px #000;
+      background-color: #fff;
+      font-size: 12px; 
+      outline: none;
+    }
+
+    /* Campo da Coluna Chave (PK) dentro do painel de colunas */
+    .chave-pk-box {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #808080;
+    }
+
+    .chave-pk-box label {
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .chave-pk-hint {
+      font-size: 10px;
+      color: #404040;
+      margin-top: 4px;
+    }
+
+    /* Tags/Modos Rústicos em Estilo Botão Chanfrado */
+    .tags-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .tag-option { position: relative; }
+
+    .tag-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0; height: 0;
+    }
+
+    .tag-label {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background-color: #c0c0c0;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      box-shadow: 1px 1px 0px #000;
+      cursor: pointer;
+      height: 100%;
+    }
+
+    .tag-label:hover {
+      background-color: #d4d0c8;
+    }
+
+    /* Quando selecionado: Botão "Afundado" (Pressed) */
+    .tag-option input[type="radio"]:checked + .tag-label {
+      background-color: #e0e0e0;
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      box-shadow: inset 1px 1px 0px #000;
+      outline: 1px dotted #000;
+      outline-offset: -4px;
+    }
+
+    .tag-title {
+      font-weight: bold;
+      font-size: 12px;
+      color: #000;
+      margin-bottom: 4px;
+    }
+
+    .tag-option input[type="radio"]:checked + .tag-label .tag-title {
+      color: #000080;
+    }
+
+    .tag-desc {
+      font-size: 11px;
+      color: #404040;
+      line-height: 1.3;
+    }
+
+    /* Caixa Selecionadora de Colunas */
+    .colunas-box {
+      max-height: 180px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 2px solid;
+      border-color: #808080 #ffffff #ffffff #808080;
+      box-shadow: inset 1px 1px 0px #000;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 6px;
+    }
+
+    .win98-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      user-select: none;
+    }
+
+    .win98-chk-item:hover {
+      background-color: #000080;
+      color: #ffffff;
+    }
+
+    .win98-chk-item input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    /* Botões Padrão Win98 */
+    button { 
+      padding: 6px 14px; 
+      font-size: 12px; 
+      font-weight: bold;
+      background-color: #c0c0c0;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      box-shadow: 1px 1px 0px #000;
+      cursor: pointer; 
+      color: #000;
+    }
+
+    button:active:not(:disabled) {
+      border-top: 2px solid #404040;
+      border-left: 2px solid #404040;
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      box-shadow: inset 1px 1px 0px #000;
+      padding: 7px 13px 5px 15px;
+    }
+
+    .btn-submit { 
+      width: 100%; 
+      padding: 10px;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .btn-submit:disabled { 
+      color: #808080;
+      text-shadow: 1px 1px 0px #fff;
+      cursor: not-allowed; 
+    }
+
+    .btn-win98-sm {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+
+    /* Área de Resultado */
+    .resultado { margin-top: 20px; display: none; }
+    
+    textarea { 
+      width: 100%; 
+      height: 220px; 
+      font-family: 'Consolas', 'Courier New', monospace; 
+      font-size: 12px;
+      padding: 8px; 
+      border: 2px solid;
+      border-color: #808080 #ffffff #ffffff #808080;
+      box-shadow: inset 1px 1px 0px #000;
+      background-color: #000000; 
+      color: #00ff00; 
+      resize: vertical; 
+    }
+
+    .botoes-acao { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-copiar, .btn-download { flex: 1; padding: 8px; }
+
+    /* Overlay de Loading Retrô */
+    .loading-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(192, 192, 192, 0.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10; display: none;
+    }
+    
+    .loading-box {
+      background: #c0c0c0;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      box-shadow: 2px 2px 0px #000;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .loading-text { font-weight: bold; font-size: 12px; color: #000; margin-top: 10px; }
+    
+    .win98-progress {
+      width: 200px;
+      height: 20px;
+      border: 2px solid;
+      border-color: #808080 #ffffff #ffffff #808080;
+      box-shadow: inset 1px 1px 0px #000;
+      background: #fff;
+      margin-top: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .win98-progress-bar {
+      height: 100%;
+      width: 50%;
+      background: #000080;
+      animation: win98-bar 1.2s infinite ease-in-out;
+    }
+
+    @keyframes win98-bar {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Barra Superior Janela -->
+  <div class="win98-title-bar">
+    <span>📊 Migrador de Planilhas para SQL v1.1</span>
+    <div class="win98-title-bar-buttons">
+      <div class="win98-btn-title" id="btnJanelaMinimizar">_</div>
+      <div class="win98-btn-title" id="btnJanelaMaximizar">□</div>
+      <div class="win98-btn-title" id="btnJanelaFechar">X</div>
+    </div>
+  </div>
+
+  <div class="win98-body">
+    <!-- Tela de Carregamento -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-box">
+        <div class="loading-text" id="loadingMessage">Processando planilha... Por favor, aguarde.</div>
+        <div class="win98-progress">
+          <div class="win98-progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <h1>Migrador de Planilhas para SQL</h1>
+    <p class="subtitulo">Envie sua planilha (.xlsx ou .csv) para gerar automaticamente o script SQL de migração.</p>
+
+    <form id="migradorForm">
+      <div class="form-group">
+        <label for="planilha">Arquivo da Planilha (.xlsx, .xls, .csv)</label>
+        <input type="file" id="planilha" accept=".xlsx, .xls, .csv" required>
+      </div>
+
+      <!-- PAINEL DE SELEÇÃO DE COLUNAS (Carregado dinamicamente) -->
+      <div class="fieldset-win98" id="grupoColunas" style="display: none;">
+        <span class="fieldset-title">📋 Colunas Detectadas na Planilha:</span>
+        <div style="margin-bottom: 8px; display: flex; gap: 6px;">
+          <button type="button" id="btnMarcarTodas" class="btn-win98-sm">Marcar Todas</button>
+          <button type="button" id="btnDesmarcarTodas" class="btn-win98-sm">Desmarcar Todas</button>
+        </div>
+        <div id="containerColunas" class="colunas-box">
+          <!-- Checkboxes injetados via JS -->
+        </div>
+
+        <!-- Seletor da Coluna Chave (PK) -->
+        <div class="chave-pk-box">
+          <label for="colunaChave">🔑 Coluna Chave (Chave Primária)</label>
+          <select id="colunaChave"></select>
+          <div class="chave-pk-hint">Usada para identificar registros existentes nos modos "Apenas Inserir" e "Substituir". Por padrão, a primeira coluna marcada.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="nomeTabela">Nome da Tabela de Destino</label>
+        <input type="text" id="nomeTabela" placeholder="ex: clientes, produtos" value="minha_tabela" required>
+      </div>
+
+      <div class="form-group">
+        <label for="bancoDados">Banco de Dados de Destino</label>
+        <select id="bancoDados">
+          <option value="sqlserver" selected>SQL Server</option>
+          <option value="mysql">MySQL / MariaDB</option>
+          <option value="postgres">PostgreSQL</option>
+        </select>
+      </div>
+
+      <!-- SCRIPT DE CONSULTA (opcional) — pro cliente rodar no banco dele e ver a estrutura real da tabela -->
+      <div class="fieldset-win98">
+        <span class="fieldset-title">🔎 Script de Consulta (opcional)</span>
+        <p style="font-size: 11px; color: #404040; margin: 0 0 8px 0;">
+          Gera um script pra rodar no banco de destino do cliente e descobrir a estrutura real
+          da tabela (nome, tipo e tamanho de cada coluna) antes de aplicar a migração.
+        </p>
+        <button type="button" id="btnGerarConsulta" class="btn-win98-sm">Gerar Script de Consulta</button>
+
+        <div id="consultaResultado" style="display: none; margin-top: 10px;">
+          <textarea id="consultaOutput" readonly style="height: 130px;"></textarea>
+          <div class="botoes-acao" style="margin-top: 6px;">
+            <button type="button" id="btnCopiarConsulta" class="btn-copiar">📋 Copiar Script de Consulta</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #808080;">
+          <label for="estruturaColada" style="font-size: 11px;">↩️ Colar aqui o resultado (a linha "estrutura" que o script acima devolveu)</label>
+          <textarea id="estruturaColada" placeholder="ex: proId:int;proCodigo:varchar;proDescricao:varchar;..." style="height: 60px;"></textarea>
+          <div class="chave-pk-hint">Opcional. Quando preenchido, o script gerado usa o tipo REAL de cada coluna do banco de destino (em vez de adivinhar pela planilha) — evita erro de conversão nos modos "Apenas Inserir" e "Substituir".</div>
+        </div>
+
+        <!-- MAPEAMENTO DE COLUNAS — só aparece quando há colunas da planilha marcadas E a estrutura colada -->
+        <div id="mapeamentoBox" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #808080;">
+          <span class="fieldset-title" style="font-size: 12px;">🔗 Mapeamento de Colunas (Planilha → Banco de Destino)</span>
+          <p style="font-size: 11px; color: #404040; margin: 4px 0 8px 0;">
+            Escolha pra qual coluna do banco cada coluna da planilha vai. Colunas com o mesmo nome já vêm pré-selecionadas.
+          </p>
+          <div id="mapeamentoContainer"></div>
+        </div>
+      </div>
+
+      <!-- Tags / Opções de Ação Rústicas -->
+      <div class="form-group">
+        <label>Ação no Banco de Dados</label>
+        <div class="tags-group">
+          
+          <div class="tag-option">
+            <input type="radio" id="modoCriar" name="modoMigracao" value="criar" checked>
+            <label for="modoCriar" class="tag-label">
+              <span class="tag-title">✨ Criar do Zero</span>
+              <span class="tag-desc">Recria a estrutura da tabela e insere todos os dados.</span>
+            </label>
+          </div>
+
+          <div class="tag-option">
+            <input type="radio" id="modoInserir" name="modoMigracao" value="inserir">
+            <label for="modoInserir" class="tag-label">
+              <span class="tag-title">➕ Apenas Inserir</span>
+              <span class="tag-desc">Preserva os registros atuais e insere os novos (UPSERT).</span>
+            </label>
+          </div>
+
+          <div class="tag-option">
+            <input type="radio" id="modoSubstituir" name="modoMigracao" value="substituir">
+            <label for="modoSubstituir" class="tag-label">
+              <span class="tag-title">🔄 Substituir Dados</span>
+              <span class="tag-desc">Esvazia a tabela (TRUNCATE) e insere os novos dados.</span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <button type="submit" id="btnGerar" class="btn-submit">⚡ Gerar Script SQL</button>
+    </form>
+
+    <div id="resultado" class="resultado">
+      <div class="fieldset-win98">
+        <span class="fieldset-title" id="statusTexto">Script Gerado</span>
+      </div>
+
+      <div id="blocosContainer"></div>
+
+      <div class="botoes-acao" style="margin-top: 10px;">
+        <button id="btnDownload" class="btn-download">💾 Baixar Script Completo (.sql)</button>
+      </div>
+    </div>
+
+    <div style="text-align: center; font-size: 11px; margin-top: 18px;">
+      <a href="https://devmarcosdutra.netlify.app" target="_blank" rel="noopener"
+         style="color: #000080; font-weight: bold; text-decoration: underline;">
+        Desenvolvido por Marcos Dutra
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('migradorForm');
+  const fileInput = document.getElementById('planilha');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingMessage = document.getElementById('loadingMessage');
+  const btnGerar = document.getElementById('btnGerar');
+  const resultadoDiv = document.getElementById('resultado');
+  const blocosContainer = document.getElementById('blocosContainer');
+  const btnDownload = document.getElementById('btnDownload');
+  const statusTexto = document.getElementById('statusTexto');
+
+  const grupoColunas = document.getElementById('grupoColunas');
+  const containerColunas = document.getElementById('containerColunas');
+  const btnMarcarTodas = document.getElementById('btnMarcarTodas');
+  const btnDesmarcarTodas = document.getElementById('btnDesmarcarTodas');
+  const colunaChaveSelect = document.getElementById('colunaChave');
+
+  const btnGerarConsulta = document.getElementById('btnGerarConsulta');
+  const consultaResultado = document.getElementById('consultaResultado');
+  const consultaOutput = document.getElementById('consultaOutput');
+  const btnCopiarConsulta = document.getElementById('btnCopiarConsulta');
+  const estruturaColada = document.getElementById('estruturaColada');
+  const mapeamentoBox = document.getElementById('mapeamentoBox');
+  const mapeamentoContainer = document.getElementById('mapeamentoContainer');
+
+  let sqlCompletoAtual = ''; // usado só pelo botão "Baixar Script Completo"
+
+  // window.electronAPI só existe quando o app roda dentro do Electron (via preload.js).
+  // Na versão web (aberta num navegador comum) esses botões simplesmente não fazem nada.
+  if (window.electronAPI) {
+    document.getElementById('btnJanelaMinimizar').addEventListener('click', () => window.electronAPI.minimizar());
+    document.getElementById('btnJanelaMaximizar').addEventListener('click', () => window.electronAPI.maximizar());
+    document.getElementById('btnJanelaFechar').addEventListener('click', () => window.electronAPI.fechar());
+  }
+
+  // Reconstrói as opções do seletor de Coluna Chave com base nas colunas
+  // atualmente marcadas, tentando preservar a seleção atual se ainda for válida.
+  function atualizarOpcoesColunaChave() {
+    const valorAtual = colunaChaveSelect.value;
+    const marcadas = Array.from(document.querySelectorAll('.chk-coluna:checked')).map(chk => chk.value);
+
+    colunaChaveSelect.innerHTML = '';
+    marcadas.forEach(coluna => {
+      const opt = document.createElement('option');
+      opt.value = coluna;
+      opt.textContent = coluna;
+      colunaChaveSelect.appendChild(opt);
+    });
+
+    if (marcadas.includes(valorAtual)) {
+      colunaChaveSelect.value = valorAtual;
+    } else if (marcadas.length > 0) {
+      colunaChaveSelect.value = marcadas[0];
+    }
+  }
+
+  // Lê a mesma linha "coluna:tipo;coluna:tipo;..." usada no campo de colar,
+  // mas aqui só precisamos dos NOMES das colunas de destino (pro <select>).
+  function extrairColunasDestino(texto) {
+    const nomes = [];
+    if (!texto) return nomes;
+    texto.trim().split(';').forEach(par => {
+      const idx = par.indexOf(':');
+      const nome = (idx === -1 ? par : par.slice(0, idx)).trim();
+      if (nome) nomes.push(nome);
+    });
+    return nomes;
+  }
+
+  // Monta a tabela "coluna da planilha → coluna do banco". Só aparece quando
+  // há colunas marcadas na planilha E uma estrutura de destino colada.
+  function atualizarMapeamentoColunas() {
+    const marcadas = Array.from(document.querySelectorAll('.chk-coluna:checked')).map(chk => chk.value);
+    const colunasDestino = extrairColunasDestino(estruturaColada.value);
+
+    if (marcadas.length === 0 || colunasDestino.length === 0) {
+      mapeamentoBox.style.display = 'none';
+      mapeamentoContainer.innerHTML = '';
+      return;
+    }
+
+    mapeamentoContainer.innerHTML = '';
+
+    marcadas.forEach(colOrigem => {
+      const linha = document.createElement('div');
+      linha.style.cssText = 'display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-bottom:6px; font-size:11px;';
+
+      const nomeOrigem = document.createElement('span');
+      nomeOrigem.textContent = colOrigem;
+      nomeOrigem.style.fontWeight = 'bold';
+
+      const seta = document.createElement('span');
+      seta.textContent = '→';
+
+      const select = document.createElement('select');
+      select.className = 'select-mapeamento';
+      select.dataset.colunaOrigem = colOrigem;
+      select.style.cssText = 'font-size:11px; padding:3px;';
+
+      const optMesmoNome = document.createElement('option');
+      optMesmoNome.value = '';
+      optMesmoNome.textContent = `(mesmo nome: ${colOrigem})`;
+      select.appendChild(optMesmoNome);
+
+      colunasDestino.forEach(colDestino => {
+        const opt = document.createElement('option');
+        opt.value = colDestino;
+        opt.textContent = colDestino;
+        select.appendChild(opt);
+      });
+
+      // Pré-seleciona se achar uma coluna de destino com o mesmo nome (ignora maiúsc/minúsc)
+      const correspondente = colunasDestino.find(c => c.toLowerCase() === colOrigem.toLowerCase());
+      if (correspondente) select.value = correspondente;
+
+      linha.appendChild(nomeOrigem);
+      linha.appendChild(seta);
+      linha.appendChild(select);
+      mapeamentoContainer.appendChild(linha);
+    });
+
+    mapeamentoBox.style.display = 'block';
+  }
+
+  // 1. EVENTO: Ler colunas assim que o arquivo for selecionado
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      grupoColunas.style.display = 'none';
+      return;
+    }
+
+    loadingMessage.textContent = 'Lendo colunas da planilha...';
+    loadingOverlay.style.display = 'flex';
+
+    const formData = new FormData();
+    formData.append('planilha', file);
+
+    try {
+      const response = await fetch('/api/ler-colunas', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.colunas) {
+        containerColunas.innerHTML = '';
+        data.colunas.forEach(coluna => {
+          const item = document.createElement('label');
+          item.className = 'win98-chk-item';
+          item.innerHTML = `
+            <input type="checkbox" class="chk-coluna" value="${coluna}" checked>
+            <span>${coluna}</span>
+          `;
+          containerColunas.appendChild(item);
+        });
+        grupoColunas.style.display = 'block';
+        atualizarOpcoesColunaChave();
+        atualizarMapeamentoColunas();
+      } else {
+        alert(data.erro || 'Erro ao carregar colunas.');
+        grupoColunas.style.display = 'none';
+      }
+    } catch (err) {
+      alert('Erro ao conectar com o servidor para ler colunas.');
+      grupoColunas.style.display = 'none';
+    } finally {
+      loadingOverlay.style.display = 'none';
+    }
+  });
+
+  // Botões de Selecionar/Desmarcar todas as colunas
+  btnMarcarTodas.addEventListener('click', () => {
+    document.querySelectorAll('.chk-coluna').forEach(chk => chk.checked = true);
+    atualizarOpcoesColunaChave();
+    atualizarMapeamentoColunas();
+  });
+
+  btnDesmarcarTodas.addEventListener('click', () => {
+    document.querySelectorAll('.chk-coluna').forEach(chk => chk.checked = false);
+    atualizarOpcoesColunaChave();
+    atualizarMapeamentoColunas();
+  });
+
+  // Atualiza o seletor de Coluna Chave e o mapeamento sempre que uma coluna for (des)marcada
+  containerColunas.addEventListener('change', (e) => {
+    if (e.target.classList.contains('chk-coluna')) {
+      atualizarOpcoesColunaChave();
+      atualizarMapeamentoColunas();
+    }
+  });
+
+  // Reconstrói o mapeamento sempre que o usuário edita o campo de estrutura colada
+  estruturaColada.addEventListener('input', atualizarMapeamentoColunas);
+
+  // Monta, na tela, um bloco por vez (com textarea + botão de copiar próprio),
+  // em vez de uma única caixa gigante — mais fácil de colar em pedaços no SSMS.
+  function renderizarBlocos(blocos) {
+    blocosContainer.innerHTML = '';
+
+    blocos.forEach((bloco) => {
+      const fieldset = document.createElement('div');
+      fieldset.className = 'fieldset-win98';
+
+      const titulo = document.createElement('span');
+      titulo.className = 'fieldset-title';
+      titulo.textContent = bloco.titulo;
+
+      const textarea = document.createElement('textarea');
+      textarea.readOnly = true;
+      textarea.value = bloco.sql;
+      textarea.style.height = '180px';
+
+      const botoesDiv = document.createElement('div');
+      botoesDiv.className = 'botoes-acao';
+
+      const btnCopiarBloco = document.createElement('button');
+      btnCopiarBloco.type = 'button';
+      btnCopiarBloco.className = 'btn-copiar';
+      btnCopiarBloco.textContent = '📋 Copiar este bloco';
+      btnCopiarBloco.addEventListener('click', () => {
+        navigator.clipboard.writeText(bloco.sql).then(() => {
+          const original = btnCopiarBloco.textContent;
+          btnCopiarBloco.textContent = '✅ Copiado!';
+          setTimeout(() => { btnCopiarBloco.textContent = original; }, 1500);
+        }).catch(() => alert('Erro ao copiar o bloco.'));
+      });
+
+      botoesDiv.appendChild(btnCopiarBloco);
+      fieldset.appendChild(titulo);
+      fieldset.appendChild(textarea);
+      fieldset.appendChild(botoesDiv);
+      blocosContainer.appendChild(fieldset);
+    });
+  }
+
+  // 2. EVENTO: Submeter Formulário para gerar o SQL
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    loadingMessage.textContent = 'Gerando script SQL... Por favor, aguarde.';
+    loadingOverlay.style.display = 'flex';
+    btnGerar.disabled = true;
+    resultadoDiv.style.display = 'none';
+
+    const nomeTabela = document.getElementById('nomeTabela').value;
+    const bancoDados = document.getElementById('bancoDados').value;
+    const modoMigracao = document.querySelector('input[name="modoMigracao"]:checked').value;
+    const colunaChave = colunaChaveSelect.value;
+
+    // Coleta apenas as colunas marcadas pelo usuário
+    const colunasSelecionadas = Array.from(document.querySelectorAll('.chk-coluna:checked'))
+                                     .map(chk => chk.value);
+
+    if (colunasSelecionadas.length === 0) {
+      alert('Selecione ao menos uma coluna para gerar o script SQL.');
+      loadingOverlay.style.display = 'none';
+      btnGerar.disabled = false;
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('planilha', fileInput.files[0]);
+    formData.append('nomeTabela', nomeTabela);
+    formData.append('bancoDados', bancoDados);
+    formData.append('modoMigracao', modoMigracao);
+    formData.append('colunasSelecionadas', JSON.stringify(colunasSelecionadas));
+    formData.append('colunaChave', colunaChave);
+    formData.append('estruturaReal', estruturaColada.value || '');
+
+    const mapeamentoColunas = {};
+    document.querySelectorAll('.select-mapeamento').forEach(select => {
+      if (select.value) mapeamentoColunas[select.dataset.colunaOrigem] = select.value;
+    });
+    formData.append('mapeamentoColunas', JSON.stringify(mapeamentoColunas));
+
+    try {
+      const response = await fetch('/api/gerar-sql', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        sqlCompletoAtual = data.sqlCompleto;
+        renderizarBlocos(data.blocos);
+        const sufixoBlocos = data.blocos.length > 1 ? ` em ${data.blocos.length} blocos` : '';
+        statusTexto.textContent = `✅ Sucesso! ${data.totalLinhas} registros processados${sufixoBlocos}.`;
+        resultadoDiv.style.display = 'block';
+      } else {
+        alert(data.erro || 'Erro ao gerar o SQL.');
+      }
+    } catch (err) {
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      loadingOverlay.style.display = 'none';
+      btnGerar.disabled = false;
+    }
+  });
+
+  // Baixar o script inteiro (todos os blocos juntos) como um único arquivo .sql
+  btnDownload.addEventListener('click', () => {
+    const nomeTabela = document.getElementById('nomeTabela').value || 'migracao';
+    const blob = new Blob([sqlCompletoAtual], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${nomeTabela}_migracao.sql`;
+    link.click();
+  });
+
+  // 3. SCRIPT DE CONSULTA — puramente informativo, roda do lado do cliente, no banco dele.
+  // Gerado no próprio navegador (não precisa do backend), a partir do banco/tabela escolhidos.
+  const SCRIPTS_CONSULTA = {
+    sqlserver: (tabela) => `SELECT STRING_AGG(CONCAT(c.name, ':', t.name), ';') AS estrutura
+FROM sys.columns c
+JOIN sys.types t ON c.user_type_id = t.user_type_id
+WHERE c.object_id = OBJECT_ID('${tabela}');`,
+
+    mysql: (tabela) => `SELECT GROUP_CONCAT(CONCAT(COLUMN_NAME, ':', DATA_TYPE) SEPARATOR ';') AS estrutura
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = '${tabela}';`,
+
+    postgres: (tabela) => `SELECT string_agg(column_name || ':' || data_type, ';') AS estrutura
+FROM information_schema.columns
+WHERE table_name = '${tabela}';`
+  };
+
+  btnGerarConsulta.addEventListener('click', () => {
+    const banco = document.getElementById('bancoDados').value;
+    const tabela = (document.getElementById('nomeTabela').value || 'nome_da_tabela').trim();
+    consultaOutput.value = SCRIPTS_CONSULTA[banco](tabela);
+    consultaResultado.style.display = 'block';
+  });
+
+  btnCopiarConsulta.addEventListener('click', () => {
+    navigator.clipboard.writeText(consultaOutput.value).then(() => {
+      const original = btnCopiarConsulta.textContent;
+      btnCopiarConsulta.textContent = '✅ Copiado!';
+      setTimeout(() => { btnCopiarConsulta.textContent = original; }, 1500);
+    }).catch(() => alert('Erro ao copiar o script de consulta.'));
+  });
+</script>
+
+</body>
+</html>
